@@ -1,0 +1,17 @@
+wordpress:
+  image: wordpress:6.7-apache
+  replicas: 1
+  adminPassword: changeme-local-only
+mariadb:
+  image: mariadb:11.4
+  storage: 2Gi
+  rootPassword: changeme-local-only
+  database: wordpress
+  user: wordpress
+  password: changeme-local-only
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: "1", memory: 1Gi }
+ingress:
+  className: nginx
+  host: ""

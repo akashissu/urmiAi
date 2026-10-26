@@ -1,0 +1,33 @@
+# Kind / k3d. Domains resolve through the local hosts file.
+global:
+  domain: urmiai.local
+  storageClass: standard
+
+gateway:
+  replicas: 1
+  # Our own upstreams are cluster-internal DNS names, so the SSRF guard's
+  # RFC1918 check must be relaxed here. It stays enforced in production.
+  allowInternalUpstreams: true
+  resources:
+    requests: { cpu: 50m, memory: 96Mi }
+    limits: { cpu: 500m, memory: 320Mi }
+
+store:
+  resources:
+    requests: { cpu: 50m, memory: 128Mi }
+    limits: { cpu: 500m, memory: 384Mi }
+
+woocommerce-mcp:
+  resources:
+    requests: { cpu: 25m, memory: 64Mi }
+    limits: { cpu: 300m, memory: 192Mi }
+
+notes-mcp:
+  resources:
+    requests: { cpu: 25m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 128Mi }
+
+dashboard:
+  resources:
+    requests: { cpu: 10m, memory: 32Mi }
+    limits: { cpu: 200m, memory: 96Mi }

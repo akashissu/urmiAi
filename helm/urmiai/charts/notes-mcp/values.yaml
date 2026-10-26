@@ -1,0 +1,6 @@
+image:
+  repository: urmiai/notes-mcp-server
+  tag: dev
+resources:
+  requests: { cpu: 50m, memory: 64Mi }
+  limits: { cpu: 250m, memory: 256Mi }

@@ -1,0 +1,28 @@
+replicas: 1
+image:
+  repository: urmiai/gateway
+  tag: dev
+postgres:
+  image: postgres:16-alpine
+  storage: 1Gi
+  password: changeme-local-only
+llm:
+  # OpenAI /chat/completions. A key from https://platform.openai.com/api-keys
+  # is sent as Bearer. Gemini and Groq use the same three fields:
+  # Gemini baseUrl https://generativelanguage.googleapis.com/v1beta/openai
+  # and model gemini-3.1-flash-lite. Groq baseUrl https://api.groq.com/openai/v1
+  # and model llama-3.3-70b-versatile.
+  baseUrl: https://api.openai.com/v1
+  model: gpt-4.1-mini
+  apiKey: ""
+# Dev placeholders. Generate real values for any shared environment:
+#   openssl rand -base64 32   -> crypto.kek
+#   openssl rand -base64 48   -> auth.jwtSecret
+crypto:
+  kek: AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA=
+auth:
+  jwtSecret: changeme-local-only
+allowInternalUpstreams: false
+resources:
+  requests: { cpu: 100m, memory: 256Mi }
+  limits: { cpu: "1", memory: 1Gi }

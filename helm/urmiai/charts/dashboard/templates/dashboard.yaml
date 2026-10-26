@@ -1,0 +1,64 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: dashboard
+spec:
+  selector:
+    app: dashboard
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: dashboard
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: dashboard
+  template:
+    metadata:
+      labels:
+        app: dashboard
+    spec:
+      containers:
+        - name: dashboard
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          readinessProbe:
+            httpGet: { path: /, port: 8080 }
+          livenessProbe:
+            httpGet: { path: /, port: 8080 }
+            initialDelaySeconds: 10
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: dashboard
+  {{- if .Values.global.tls.enabled }}
+  annotations:
+    cert-manager.io/cluster-issuer: {{ .Values.global.tls.clusterIssuer | quote }}
+  {{- end }}
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  {{- if .Values.global.tls.enabled }}
+  tls:
+    - hosts: [{{ .Values.ingress.host | default (printf "app.%s" .Values.global.domain) | quote }}]
+      secretName: dashboard-tls
+  {{- end }}
+  rules:
+    - host: {{ .Values.ingress.host | default (printf "app.%s" .Values.global.domain) }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: dashboard
+                port:
+                  number: 8080

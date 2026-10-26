@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: wp-init-script
+data:
+  init.sh: |
+    #!/bin/sh
+    # Idempotent bootstrap: install WordPress, activate WooCommerce, enable
+    # cash on delivery, and create exactly one REST API key. Safe to re-run.
+    set -e
+    cd /var/www/html
+    # The WordPress container owns this volume. Run as root, then hand it back.
+    chown -R www-data:www-data /var/www/html || true
+
+    until wp db check --allow-root >/dev/null 2>&1; do
+      echo "waiting for mariadb"
+      sleep 5
+    done
+
+    if ! wp core is-installed --allow-root >/dev/null 2>&1; then
+      wp core install --allow-root --url="$WP_URL" --title="UrmiAi Store" \
+        --admin_user=admin --admin_password="$WP_ADMIN_PASSWORD" \
+        --admin_email=admin@example.com --skip-email
+    fi
+
+    wp plugin install woocommerce --version=9.9.7 --activate --allow-root
+    # WooCommerce 9 turns on a coming-soon page for shop, cart, and checkout.
+    # The assignment needs those pages to show products.
+    wp option update woocommerce_coming_soon no --allow-root
+    wp option update woocommerce_cod_settings '{"enabled":"yes"}' --format=json --allow-root
+    # Plain permalinks make /wp-json/ return the theme HTML. Pretty permalinks
+    # are what the WooCommerce REST client calls.
+    wp rewrite structure '/%postname%/' --hard --allow-root
+    wp rewrite flush --hard --allow-root
+    # WooCommerce accepts consumer key auth only when it believes the
+    # request is HTTPS. The store is HTTP inside the cluster, so mark
+    # just those REST calls as HTTPS. Normal page views stay HTTP.
+    # Same script as deploy/allow-rest.php, inlined so the Job does not
+    # depend on a file from the laptop.
+    echo 'PD9waHANCiRwYXRoID0gIi92YXIvd3d3L2h0bWwvd3AtY29uZmlnLnBocCI7DQokc291cmNlID0gZmlsZV9nZXRfY29udGVudHMoJHBhdGgpOw0KaWYgKCFzdHJfY29udGFpbnMoJHNvdXJjZSwgInVybWlhaS1hbGxvdy1odHRwLXJlc3Qta2V5cyIpKSB7DQogICAgJGxpbmUgPSAiXG4vLyB1cm1pYWktYWxsb3ctaHR0cC1yZXN0LWtleXNcbmlmIChpc3NldChcJF9HRVRbXCJjb25zdW1lcl9rZXlcIl0pKSB7IFwkX1NFUlZFUltcIkhUVFBTXCJdID0gXCJvblwiOyB9XG4iOw0KICAgICRzb3VyY2UgPSBwcmVnX3JlcGxhY2UoIi88XFw/cGhwLyIsICI8P3BocCIgLiAkbGluZSwgJHNvdXJjZSwgMSk7DQogICAgZmlsZV9wdXRfY29udGVudHMoJHBhdGgsICRzb3VyY2UpOw0KICAgIGVjaG8gImluc2VydGVkXG4iOw0KfSBlbHNlIHsNCiAgICBlY2hvICJhbHJlYWR5XG4iOw0KfQ0K' | base64 -d > /tmp/allow-rest.php
+    php /tmp/allow-rest.php
+
+    # WooCommerce stores the consumer key as HMAC-SHA256 with the literal
+    # key "wc-api" and never stores the raw key, so we generate it here and
+    # hand only the raw value to the shared Secret.
+    # The raw key is written to a file on the shared volume. WooCommerce only
+    # keeps the HMAC, so this file is the single source the MCP server reads.
+    KEY_FILE=/var/www/html/.urmiai-wc-key
+    if [ ! -f "$KEY_FILE" ]; then
+      CONSUMER_KEY="ck_$(openssl rand -hex 16)"
+      CONSUMER_SECRET=$(openssl rand -hex 16)
+      export CONSUMER_KEY
+      HASH=$(php -r "echo hash_hmac('sha256', getenv('CONSUMER_KEY'), 'wc-api');")
+      TRUNCATED=$(printf '%s' "$CONSUMER_KEY" | cut -c1-7)
+      wp db query "INSERT INTO wp_woocommerce_api_keys (user_id, description, permissions, consumer_key, consumer_secret, truncated_key) VALUES (1, 'urmiai-mcp', 'read_write', '$HASH', '$CONSUMER_SECRET', '$TRUNCATED')" --allow-root
+      printf 'WC_CONSUMER_KEY=%s\nWC_CONSUMER_SECRET=%s\n' "$CONSUMER_KEY" "$CONSUMER_SECRET" > "$KEY_FILE"
+      chmod 644 "$KEY_FILE"
+      echo "created REST key $TRUNCATED"
+    fi
+    chown -R www-data:www-data /var/www/html || true
+    chmod 644 "$KEY_FILE" || true
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: wp-init
+  annotations:
+    helm.sh/hook: post-install,post-upgrade
+    helm.sh/hook-delete-policy: before-hook-creation
+spec:
+  backoffLimit: 12
+  template:
+    spec:
+      restartPolicy: OnFailure
+      securityContext:
+        runAsUser: 0
+      containers:
+        - name: wp-init
+          image: wordpress:cli-2.11-php8.2
+          command: ["sh", "/scripts/init.sh"]
+          env:
+            - name: WP_URL
+              value: {{ printf "http://store.%s" .Values.global.domain | quote }}
+            - name: WP_ADMIN_PASSWORD
+              valueFrom: { secretKeyRef: { name: wordpress-admin, key: password } }
+            - name: WORDPRESS_DB_HOST
+              value: mariadb
+            - name: WORDPRESS_DB_NAME
+              valueFrom: { secretKeyRef: { name: wordpress-db, key: WORDPRESS_DB_NAME } }
+            - name: WORDPRESS_DB_USER
+              valueFrom: { secretKeyRef: { name: wordpress-db, key: WORDPRESS_DB_USER } }
+            - name: WORDPRESS_DB_PASSWORD
+              valueFrom: { secretKeyRef: { name: wordpress-db, key: WORDPRESS_DB_PASSWORD } }
+          volumeMounts:
+            - name: content
+              mountPath: /var/www/html
+            - name: scripts
+              mountPath: /scripts
+      volumes:
+        - name: content
+          persistentVolumeClaim:
+            claimName: wordpress-content
+        - name: scripts
+          configMap:
+            name: wp-init-script
+            defaultMode: 0755

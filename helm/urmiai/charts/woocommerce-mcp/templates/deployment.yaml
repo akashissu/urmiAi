@@ -1,0 +1,66 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: woocommerce-mcp
+spec:
+  # ClusterIP and no Ingress on purpose: only the gateway, inside the
+  # cluster, is meant to reach this server.
+  type: ClusterIP
+  selector:
+    app: woocommerce-mcp
+  ports:
+    - port: 8080
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: woocommerce-mcp
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: woocommerce-mcp
+  template:
+    metadata:
+      labels:
+        app: woocommerce-mcp
+    spec:
+      containers:
+        - name: woocommerce-mcp
+          image: "{{ .Values.image.repository }}:{{ .Values.image.tag }}"
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 8080
+          env:
+            - name: PORT
+              value: "8080"
+            - name: WC_BASE_URL
+              value: {{ .Values.storeBaseUrl | quote }}
+          # The init job writes the REST key to a file on the shared volume
+          # because WooCommerce stores only the HMAC, never the raw key. The
+          # wrapper exports it as the env vars the server expects.
+          command: ["sh", "-c"]
+          args:
+            - |
+              set -e
+              KEY_FILE=/var/www/html/.urmiai-wc-key
+              until [ -f "$KEY_FILE" ]; do echo "waiting for REST key"; sleep 5; done
+              set -a; . "$KEY_FILE"; set +a
+              exec node dist/index.js
+          readinessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            periodSeconds: 10
+          livenessProbe:
+            httpGet: { path: /healthz, port: 8080 }
+            initialDelaySeconds: 15
+            periodSeconds: 20
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: content
+              mountPath: /var/www/html
+              readOnly: true
+      volumes:
+        - name: content
+          persistentVolumeClaim:
+            claimName: wordpress-content

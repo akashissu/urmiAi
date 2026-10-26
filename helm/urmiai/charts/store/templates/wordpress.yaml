@@ -1,0 +1,106 @@
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wordpress-admin
+type: Opaque
+stringData:
+  password: {{ .Values.wordpress.adminPassword | quote }}
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: wordpress-db
+type: Opaque
+stringData:
+  WORDPRESS_DB_HOST: mariadb
+  WORDPRESS_DB_NAME: {{ .Values.mariadb.database | quote }}
+  WORDPRESS_DB_USER: {{ .Values.mariadb.user | quote }}
+  WORDPRESS_DB_PASSWORD: {{ .Values.mariadb.password | quote }}
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: wordpress
+spec:
+  selector:
+    app: wordpress
+  ports:
+    - port: 80
+      targetPort: 80
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: wordpress
+spec:
+  replicas: {{ .Values.wordpress.replicas }}
+  selector:
+    matchLabels:
+      app: wordpress
+  template:
+    metadata:
+      labels:
+        app: wordpress
+    spec:
+      containers:
+        - name: wordpress
+          image: {{ .Values.wordpress.image }}
+          ports:
+            - containerPort: 80
+          envFrom:
+            - secretRef:
+                name: wordpress-db
+          readinessProbe:
+            httpGet:
+              path: /wp-login.php
+              port: 80
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 10
+            failureThreshold: 6
+          livenessProbe:
+            httpGet:
+              path: /wp-login.php
+              port: 80
+            initialDelaySeconds: 40
+            periodSeconds: 20
+            timeoutSeconds: 10
+            failureThreshold: 6
+          resources:
+            {{- toYaml .Values.resources | nindent 12 }}
+          volumeMounts:
+            - name: content
+              mountPath: /var/www/html
+      volumes:
+        - name: content
+          persistentVolumeClaim:
+            claimName: wordpress-content
+---
+apiVersion: v1
+kind: PersistentVolumeClaim
+metadata:
+  name: wordpress-content
+spec:
+  accessModes: ["ReadWriteOnce"]
+  storageClassName: {{ .Values.global.storageClass }}
+  resources:
+    requests:
+      storage: 2Gi
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: wordpress
+spec:
+  ingressClassName: {{ .Values.ingress.className }}
+  rules:
+    - host: {{ .Values.ingress.host | default (printf "store.%s" .Values.global.domain) }}
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: wordpress
+                port:
+                  number: 80

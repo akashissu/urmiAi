@@ -1,0 +1,6 @@
+apiVersion: v2
+name: notes-mcp
+description: In-memory notes MCP server, the second demo upstream
+type: application
+version: 0.1.0
+appVersion: "0.1.0"

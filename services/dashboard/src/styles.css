@@ -1,0 +1,33 @@
+:root {
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #1a1a1a;
+  background: #f5f6f8;
+}
+body { margin: 0; }
+button, input, select { font: inherit; }
+button { cursor: pointer; }
+
+.app { display: grid; grid-template-columns: 220px 1fr; min-height: 100vh; }
+nav { background: #1b2430; color: #fff; padding: 20px 16px; }
+nav h1 { font-size: 16px; margin: 0 0 20px; }
+nav button { display: block; width: 100%; text-align: left; background: transparent; color: #d5dbe3; border: 0; padding: 8px 10px; border-radius: 6px; }
+nav button.active { background: #2c3a4d; color: #fff; }
+main { padding: 24px 32px; }
+.row { display: flex; gap: 8px; align-items: center; }
+.card { background: #fff; border: 1px solid #e3e6eb; border-radius: 8px; padding: 16px; margin-bottom: 12px; }
+table { width: 100%; border-collapse: collapse; background: #fff; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid #eef0f3; font-size: 14px; }
+.badge { padding: 2px 8px; border-radius: 10px; font-size: 12px; }
+.badge.connected { background: #e3f6e8; color: #157f3c; }
+.badge.unreachable { background: #fde8e8; color: #c0392b; }
+.badge.unknown { background: #eee; color: #666; }
+input, select { padding: 6px 8px; border: 1px solid #ccd; border-radius: 6px; }
+.btn { background: #2563eb; color: #fff; border: 0; padding: 7px 14px; border-radius: 6px; }
+.btn.danger { background: #c0392b; }
+.btn.ghost { background: #e8eaee; color: #1a1a1a; }
+.error { color: #c0392b; font-size: 14px; }
+.chat-log { display: flex; flex-direction: column; gap: 8px; margin-bottom: 12px; }
+.bubble { padding: 10px 12px; border-radius: 8px; max-width: 720px; }
+.bubble.user { background: #2563eb; color: #fff; align-self: flex-end; }
+.bubble.assistant { background: #fff; border: 1px solid #e3e6eb; }
+.bubble.tool { background: #f4f1ea; font-family: ui-monospace, monospace; font-size: 12px; }

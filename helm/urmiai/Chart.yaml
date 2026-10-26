@@ -1,0 +1,27 @@
+apiVersion: v2
+name: urmiai
+description: Umbrella chart for the UrmiAi MCP gateway platform
+type: application
+version: 0.1.0
+appVersion: "0.1.0"
+dependencies:
+  - name: store
+    version: 0.1.0
+    repository: "file://charts/store"
+    condition: store.enabled
+  - name: woocommerce-mcp
+    version: 0.1.0
+    repository: "file://charts/woocommerce-mcp"
+    condition: woocommerce-mcp.enabled
+  - name: notes-mcp
+    version: 0.1.0
+    repository: "file://charts/notes-mcp"
+    condition: notes-mcp.enabled
+  - name: gateway
+    version: 0.1.0
+    repository: "file://charts/gateway"
+    condition: gateway.enabled
+  - name: dashboard
+    version: 0.1.0
+    repository: "file://charts/dashboard"
+    condition: dashboard.enabled

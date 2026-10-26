@@ -1,0 +1,14 @@
+# k3s on a VPS. Only values change relative to local — same templates.
+# Everything environment-specific is under `global` because that is the only
+# values key Helm propagates from a parent chart into its subcharts. Putting
+# these at the top level would silently be ignored by the subcharts.
+global:
+  domain: example.com
+  storageClass: local-path
+  tls:
+    enabled: true
+    clusterIssuer: letsencrypt-prod
+
+gateway:
+  replicas: 2
+  allowInternalUpstreams: false

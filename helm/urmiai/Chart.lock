@@ -1,0 +1,18 @@
+dependencies:
+- name: store
+  repository: file://charts/store
+  version: 0.1.0
+- name: woocommerce-mcp
+  repository: file://charts/woocommerce-mcp
+  version: 0.1.0
+- name: notes-mcp
+  repository: file://charts/notes-mcp
+  version: 0.1.0
+- name: gateway
+  repository: file://charts/gateway
+  version: 0.1.0
+- name: dashboard
+  repository: file://charts/dashboard
+  version: 0.1.0
+digest: sha256:83e8a151395601a1311322528c796886c25979dd9a4158d719e688628f0f14bd
+generated: "2026-10-24T14:16:29.9909409+05:30"

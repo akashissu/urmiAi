@@ -1,0 +1,60 @@
+# Shared defaults. Environment-specific overrides live in
+# values-local.yaml and values-prod.yaml — never fork a template.
+
+global:
+  domain: urmiai.local
+  storageClass: standard
+  tls:
+    enabled: false
+    clusterIssuer: ""
+
+imagePullPolicy: IfNotPresent
+
+store:
+  enabled: true
+  wordpress:
+    image: wordpress:6.7-apache
+    replicas: 1
+  mariadb:
+    image: mariadb:11.4
+    storage: 2Gi
+    # Dev-only placeholder. Production sets this via --set from a secret
+    # manager; it is never a real credential.
+    rootPassword: changeme-local-only
+    database: wordpress
+    user: wordpress
+    password: changeme-local-only
+
+woocommerce-mcp:
+  enabled: true
+  image:
+    repository: urmiai/woocommerce-mcp-server
+    tag: dev
+
+notes-mcp:
+  enabled: true
+  image:
+    repository: urmiai/notes-mcp-server
+    tag: dev
+
+gateway:
+  enabled: true
+  replicas: 1
+  image:
+    repository: urmiai/gateway
+    tag: dev
+  postgres:
+    image: postgres:16-alpine
+    storage: 1Gi
+    password: changeme-local-only
+  llm:
+    # Same shape as charts/gateway/values.yaml. The key is empty on purpose.
+    baseUrl: https://api.openai.com/v1
+    model: gpt-4.1-mini
+  allowInternalUpstreams: false
+
+dashboard:
+  enabled: true
+  image:
+    repository: urmiai/dashboard
+    tag: dev

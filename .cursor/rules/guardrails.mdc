@@ -1,0 +1,29 @@
+---
+description: Hard guardrails for the UrmiAi MCP Gateway assessment. Always applied.
+alwaysApply: true
+---
+
+# Guardrails
+
+## Secrets
+- No credentials, API keys, tokens, or connection strings hardcoded in source, Helm values committed to git, or Dockerfiles. Dev placeholders in `values-local.yaml` must be obviously fake (e.g. `changeme-local-only`) and called out as such.
+- All real secrets come from environment variables backed by Kubernetes Secrets.
+- API keys are stored only as argon2 hashes. Upstream MCP credentials are stored only as AES-256-GCM ciphertext. Never log either, never return either in an API response.
+
+## Kubernetes
+- Every Deployment and StatefulSet gets `livenessProbe`, `readinessProbe`, and `resources.requests` + `resources.limits`. No exceptions, even for "small" services.
+- The WooCommerce MCP server is ClusterIP only. Never add an Ingress or a NodePort/LoadBalancer Service for it.
+- Local vs production differences go in `values-local.yaml` / `values-prod.yaml` only — never duplicate a template to special-case an environment.
+
+## Code
+- New runtime dependency requires a one-line justification in the PR/commit message or in `docs/CODEBASE_MAP.md`. Prefer the standard library or an existing dependency.
+- Every new exported function gets a one-line entry in `docs/CODEBASE_MAP.md` in the same change that adds it.
+- Errors returned to MCP clients or the dashboard must be explicit about which upstream failed and why (timeout vs unreachable vs bad input) — never a bare "internal error" for an upstream failure.
+- A failure talking to one upstream must never throw out of a function that aggregates across all upstreams. Use `Promise.allSettled` (or equivalent) plus per-call timeouts.
+
+## Scope discipline
+- Build in the order in `docs/BUILD_PLAN.md`. Do not start bonus features (multi-store, OAuth, tool permissions, hosted MCP servers, etc.) before Day 12's definition-of-done run passes.
+- If asked to generate something outside current scope, flag it and point at the relevant day in the build plan instead of silently expanding scope.
+
+## Interviewability
+- When a non-obvious decision is made (a library choice, a timeout value, a naming scheme), add a 2-3 sentence "why" to `docs/INTERVIEW_PREP.md` in the same change — don't leave the reasoning only in code comments.
